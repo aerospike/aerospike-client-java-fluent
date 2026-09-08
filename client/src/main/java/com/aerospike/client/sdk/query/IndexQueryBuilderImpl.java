@@ -21,7 +21,6 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aerospike.client.sdk.AbstractFilterableBuilder;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AsyncRecordStream;
 import com.aerospike.client.sdk.Cluster;
@@ -62,7 +61,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     @Override
     public RecordStream execute(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        return AbstractFilterableBuilder.filterStreamErrors(executeInternal(null), handler);
+        return executeInternal(handler);
     }
 
     @Override
@@ -112,7 +111,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         }
         else {
             // Paginated query
-            return new RecordStream(stream, cmd, qb.getLimit(), policy.getRecordQueueSize());
+            return new RecordStream(stream, cmd, qb.getLimit(), policy.getRecordQueueSize(), handler);
         }
     }
 
