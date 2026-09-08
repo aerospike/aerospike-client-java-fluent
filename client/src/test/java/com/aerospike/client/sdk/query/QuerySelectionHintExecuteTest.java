@@ -33,13 +33,11 @@ import java.util.function.Function;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
-import com.aerospike.client.sdk.KnownDefect;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.query.QuerySelectionIntegSupport.Fixture;
@@ -178,7 +176,7 @@ public class QuerySelectionHintExecuteTest extends ClusterTest {
     }
 
     /**
-     * The same hint on a strong-consistency namespace is rejected rather than ignored.
+     * The same hint on a strong-consistency namespace must be reported as rejected, not as empty.
      *
      * <p>{@code LONG_RELAX_AP} sets {@code INFO2_RELAX_AP_LONG_QUERY}, and the server refuses the
      * combination outright rather than silently downgrading to {@code LONG}:</p>
@@ -194,29 +192,19 @@ public class QuerySelectionHintExecuteTest extends ClusterTest {
      * }
      * </pre>
      *
-     * <p>So relaxing consistency is not merely meaningless under SC, it is refused. Confirmed in the server
-     * log for this exact run:</p>
-     *
-     * <pre>
-     * WARNING (query): (query.c:1783) basic query in SC can't use 'relax' policy
-     * </pre>
-     *
-     * <p>The caller should therefore see {@code PARAMETER_ERROR}. Instead the rejection is swallowed and the
-     * query looks like it matched nothing, which is what this test currently pins.</p>
+     * <p>The rejection arrives once the stream is already open, which is the interesting part: it is
+     * carried to the caller by the stream rather than thrown from {@code execute()}. An empty result
+     * set here is indistinguishable from a query that matched nothing, so the assertion is that the
+     * failure is raised at all (CLIENT-5406).</p>
      */
     @Test
-    @Tag(KnownDefect.TAG)
-    void executeQueryDurationLongRelaxApOnStrongConsistencyIsRejected() {
+    void executeQueryDurationLongRelaxApOnStrongConsistencyThrows() {
         assumeTrue(args.scMode, "asserts the SC-only rejection");
 
-        KnownDefect.pinned(
-            "the server rejects this query outright with AS_ERR_PARAMETER, but QueryNodeExecutor.parseRow"
-                + " treats any non-zero result code arriving with INFO3_PARTITION_DONE as a transient"
-                + " unavailable partition and schedules a retry, so a permanent whole-query rejection reaches"
-                + " the caller as an empty result set with no exception. Expected an AerospikeException with"
-                + " ResultCode.PARAMETER_ERROR. Any query-level fatal error carrying that flag is affected,"
-                + " not just this one",
-            () -> assertEquals(List.of(), ageRows(hint -> hint.queryDuration(QueryDuration.LONG_RELAX_AP))));
+        AerospikeException e = assertThrows(AerospikeException.class, () ->
+            ageRows(hint -> hint.queryDuration(QueryDuration.LONG_RELAX_AP)));
+
+        assertEquals(ResultCode.PARAMETER_ERROR, e.getResultCode());
     }
 
     /** Runs {@link #ageRangeWhere} over the public path; a {@code null} configurator means no hint. */
