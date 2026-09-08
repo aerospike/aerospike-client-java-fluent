@@ -19,6 +19,7 @@ package com.aerospike.client.sdk;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
+import com.aerospike.client.sdk.command.CommandContainerToStringTest;
 import com.aerospike.client.sdk.command.IndexProbeCommandTest;
 import com.aerospike.client.sdk.policy.AsyncRecordStreamTest;
 import com.aerospike.client.sdk.policy.BehaviorFileMonitorRestartTest;
@@ -26,6 +27,7 @@ import com.aerospike.client.sdk.policy.BehaviorTest;
 import com.aerospike.client.sdk.policy.BehaviorYamlTest;
 import com.aerospike.client.sdk.policy.QueryProducerCancellationTest;
 import com.aerospike.client.sdk.policy.SystemBehaviorTest;
+import com.aerospike.client.sdk.exp.ExpressionToStringTest;
 import com.aerospike.client.sdk.query.AelPlaceholderBinderTest;
 import com.aerospike.client.sdk.query.FilterOverrideTest;
 import com.aerospike.client.sdk.query.FilterWireRangeTest;
@@ -43,8 +45,6 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
     BehaviorFileMonitorRestartTest.class,
     BehaviorTest.class,
     BehaviorYamlTest.class,
-    CdtPathExpressionFluentTest.class,
-    CdtPathOperationTest.class,
     BinBuilderOptionsTest.class,
     BinBuilderValueTest.class,
     CdtGetOrRemoveBuilderDispatchTest.class,
@@ -53,8 +53,13 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
     CdtReadOnlyBuilderPathTest.class,
     CdtReadOnlyBuilderSelectorTest.class,
     CdtReadOnlyBuilderTerminalTest.class,
+    CdtPathExpressionFluentTest.class,
+    CdtPathOperationTest.class,
     CdtSelectorParityTest.class,
+    CommandContainerToStringTest.class,
+    ContainerToStringTest.class,
     CtxSerdeTest.class,
+    ExpressionToStringTest.class,
     FilterOverrideTest.class,
     FilterWireRangeTest.class,
     IndexProbeCommandTest.class,
