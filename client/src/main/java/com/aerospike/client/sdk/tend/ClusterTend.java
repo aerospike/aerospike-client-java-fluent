@@ -198,10 +198,11 @@ public class ClusterTend implements Runnable {
         if (nodes.length == 0) {
             seedNode(peers, failIfNotConnected);
 
+            // Reset nodes because seedNode changes them.
+            nodes = cluster.getNodes();
+
             // Abort cluster init if all peers of the seed are not reachable and failIfNotConnected is true.
-            // seedNode() has just added the seed to the cluster, so read the
-            // current node count rather than the (empty) snapshot taken above.
-            if (isInit && failIfNotConnected && cluster.getNodes().length == 1 && peers.getInvalidCount() > 0) {
+            if (isInit && failIfNotConnected && nodes.length == 1 && peers.getInvalidCount() > 0) {
                 peers.clusterInitError();
             }
         }
@@ -237,11 +238,10 @@ public class ClusterTend implements Runnable {
         }
 
         invalidNodeCount += peers.getInvalidCount();
-
-        Node[] activeNodes = cluster.getNodes();
+        nodes = cluster.getNodes();
 
         // Refresh partition map when necessary.
-        for (Node node : activeNodes) {
+        for (Node node : nodes) {
             if (node.isPartitionChanged()) {
                 node.refreshPartitions(peers);
             }
@@ -255,14 +255,14 @@ public class ClusterTend implements Runnable {
 
         // Balance connections every 30 tend iterations.
         if (tendCount % 30 == 0) {
-            for (Node node : activeNodes) {
+            for (Node node : nodes) {
                 node.balanceConnections();
             }
         }
 
         // Reset connection error window for all nodes every connErrorWindow tend iterations.
         if (tendCount % def.getNumTendIntervalsInErrorWindow() == 0) {
-            for (Node node : activeNodes) {
+            for (Node node : nodes) {
                 node.resetErrorRate();
             }
         }
