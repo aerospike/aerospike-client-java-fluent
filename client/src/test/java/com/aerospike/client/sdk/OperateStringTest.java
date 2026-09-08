@@ -465,6 +465,68 @@ public class OperateStringTest extends ClusterTest {
                             "StringOperation.concat(flags, [!,?], stringBin)"));
                 }
             }
+
+            @Test
+            public void createOnlyStringAppendCreatesMissingBin() {
+                String binName = "createOnlyFresh";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.CREATE_ONLY, binName, "created")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("created", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void createOnlyStringAppendOnLiveBinReturnsBinExists() {
+                String binName = "createOnlyLive";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(key, b -> b.appendOperations(
+                    StringOperation.append(StringWriteFlags.CREATE_ONLY, binName, "!"))));
+
+                assertEquals(ResultCode.BIN_EXISTS_ERROR, ae.getResultCode());
+            }
+
+            @Test
+            public void createOnlyNoFailStringAppendOnLiveBinIsNoOp() {
+                String binName = "coNoFail";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.CREATE_ONLY | StringWriteFlags.NO_FAIL, binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("original", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void updateOnlyStringAppendOnMissingBinDoesNotCreate() {
+                String binName = "updMissing";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.UPDATE_ONLY, binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertNull(rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void noFailDoesNotSuppressWrongTypeStringModify() {
+                String binName = "wrongType";
+                seed(key, b -> b.bin(binName).setTo(123));
+
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(key, b -> b.appendOperations(
+                    StringOperation.append(StringWriteFlags.NO_FAIL, binName, "!"))));
+
+                assertEquals(ResultCode.BIN_TYPE_ERROR, ae.getResultCode());
+            }
         }
 
         @Nested
@@ -613,6 +675,98 @@ public class OperateStringTest extends ClusterTest {
                         () -> assertEquals("Hello!?", rec.getString("concatenated"),
                             "StringExp.concat(flags, [!,?], stringBin s)"));
                 }
+            }
+
+            @Test
+            public void noFailSuppressedStringExpModifyReturnsOriginalString() {
+                Exp s = Exp.stringBin(STRING_BIN);
+
+                try (RecordStream rs = session.query(key)
+                    .bin("repeatFail").selectFrom(StringExp.repeat(StringWriteFlags.NO_FAIL, Exp.val(-1), s))
+                    .execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("Hello", rec.getString("repeatFail"));
+                }
+            }
+        }
+
+        /**
+         * Scopes a server defect: {@code isUpper} / {@code isLower} do not observe the
+         * result of a preceding {@code upper} / {@code lower}, though other reads on the
+         * same operand do.
+         *
+         * <p>Not front-end specific — {@code AelStringTest.isUpperAndIsLowerObserveChainedCaseOp}
+         * reproduces it through AEL source text, so it sits in the shared string-op
+         * evaluation below both the AEL compiler and these Exp builders. The two controls
+         * here are what narrow it: the classifiers are correct on an uncomputed operand,
+         * and other reads are correct on a computed one.
+         */
+        @Nested
+        @DisplayName("StringExp case classification after a case op")
+        class ChainedCaseOps {
+            Key key;
+
+            @BeforeEach
+            void seedChainedCaseRecord() {
+                key = freshKey("stringExpChainedCase");
+                seed(key, b -> b.bin(STRING_BIN).setTo("Hello World"));
+            }
+
+            /** Control: the classifiers themselves are sound on an uncomputed operand. */
+            @Test
+            @DisplayName("isUpper / isLower are correct on an uncomputed operand")
+            public void classifiersCorrectOnUncomputedOperand() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                assertAll("classifiers on uncomputed operands",
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(val HELLO)",
+                        StringExp.isUpper(Exp.val("HELLO")),
+                        rec -> assertTrue(rec.getBoolean("r"), "literal is all upper")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isLower(val hello)",
+                        StringExp.isLower(Exp.val("hello")),
+                        rec -> assertTrue(rec.getBoolean("r"), "literal is all lower")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(stringBin s)",
+                        StringExp.isUpper(s),
+                        rec -> assertFalse(rec.getBoolean("r"), "mixed-case bin is not all upper")));
+            }
+
+            /** Control: other reads do observe the case op's result. */
+            @Test
+            @DisplayName("upper / contains observe the case op result")
+            public void otherReadsObserveCaseOp() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                int flags = StringWriteFlags.DEFAULT;
+                assertAll("other reads on a computed operand",
+                    () -> assertProjection(session, key,
+                        "StringExp.upper(flags, stringBin s)",
+                        StringExp.upper(flags, s),
+                        rec -> assertEquals("HELLO WORLD", rec.getString("r"),
+                            "upper produces the uppercased value")),
+                    // "Hello World" does not contain "HELLO", so a true here can only come
+                    // from contains seeing the uppercased value.
+                    () -> assertProjection(session, key,
+                        "StringExp.contains(HELLO, upper(flags, stringBin s))",
+                        StringExp.contains(Exp.val("HELLO"), StringExp.upper(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "contains sees the case op result")));
+            }
+
+            @Disabled("server: isUpper/isLower ignore a chained case op; reproduces via AEL too")
+            @Test
+            @DisplayName("isUpper / isLower observe the case op result")
+            public void classifiersObserveCaseOp() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                int flags = StringWriteFlags.DEFAULT;
+                assertAll("classifiers on a computed operand",
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(upper(flags, stringBin s))",
+                        StringExp.isUpper(StringExp.upper(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "uppercased value is all upper")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isLower(lower(flags, stringBin s))",
+                        StringExp.isLower(StringExp.lower(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "lowercased value is all lower")));
             }
         }
 
