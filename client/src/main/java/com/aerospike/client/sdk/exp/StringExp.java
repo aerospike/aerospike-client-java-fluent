@@ -251,6 +251,8 @@ public final class StringExp {
     /**
      * Create expression that tests whether {@code src} begins with {@code prefix}.
      * Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     * Matching is Unicode canonical, not byte-exact: a prefix in a different
+     * normalization form than the source still matches.
      *
      * <pre>{@code
      * Exp matched = StringExp.startsWith(Exp.val("Hello"), Exp.stringBin("text"));
@@ -268,6 +270,8 @@ public final class StringExp {
     /**
      * Create expression that tests whether {@code src} ends with {@code suffix}.
      * Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     * Matching is Unicode canonical, not byte-exact: a prefix in a different
+     * normalization form than the source still matches.
      *
      * <pre>{@code
      * Exp matched = StringExp.endsWith(Exp.val("World"), Exp.stringBin("text"));

@@ -69,6 +69,8 @@ public class OperateStringTest extends ClusterTest {
     private static final String NFC_BIN = "nfc";
     private static final Key KEY = args.set.id("stringop-key");
     private static final String BIN = "sbin";
+    // Ceiling the server puts on a modify op's estimated result size.
+    private static final int RESULT_SIZE_CAP = 8 * 1024 * 1024;
 
     @Nested
     @DisplayName("reads")
@@ -989,6 +991,159 @@ public class OperateStringTest extends ClusterTest {
             StringOperation.append(StringWriteFlags.DEFAULT, BIN, "!", CTX.listIndex(99)))));
 
         assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
+    }
+
+    @Test
+    public void replaceMatchesAcrossNormalizationForms() {
+        // replace carries the same canonical-equivalence guarantee as find /
+        // contains above: string_modify_op_replace_K_icu routes through
+        // get_canon_search (particle_string.c) whenever the forms differ.
+        final String NFC = "caf\u00E9";       // "café" composed
+        final String NFD = "cafe\u0301";      // "café" decomposed
+
+        // Composed haystack, decomposed needle.
+        put(NFC + " au lait");
+        Record rec = session.upsert(KEY)
+            .bin(BIN).replace(NFD, "tea")
+            .execute()
+            .getFirstRecord();
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+        assertEquals("tea au lait", rec.getString(BIN));
+
+        // Decomposed haystack, composed needle.
+        put(NFD + " au lait");
+        rec = session.upsert(KEY)
+            .bin(BIN).replace(NFC, "tea")
+            .execute()
+            .getFirstRecord();
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+        assertEquals("tea au lait", rec.getString(BIN));
+    }
+
+    @Test
+    public void startsWithAndEndsWithMatchAcrossNormalizationForms() {
+        // get_canon_search has four call sites, not two: prefix and suffix
+        // matching are canonical as well, so an affix in either form matches a
+        // bin stored in the other.
+        final String NFC = "caf\u00E9";
+        final String NFD = "cafe\u0301";
+
+        put(NFC + " au lait");
+        Record rec = session.upsert(KEY)
+            .bin(BIN).startsWith(NFD)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+
+        put(NFD + " au lait");
+        rec = session.upsert(KEY)
+            .bin(BIN).startsWith(NFC)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+
+        put("au lait " + NFC);
+        rec = session.upsert(KEY)
+            .bin(BIN).endsWith(NFD)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+
+        put("au lait " + NFD);
+        rec = session.upsert(KEY)
+            .bin(BIN).endsWith(NFC)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+    }
+
+    //=================================================================
+    // Result-size cap
+    //
+    // Modify ops bound their estimated result at prepare time
+    // (particle_string.c string_modify_set_estimated_size). Exceeding the
+    // bound is PARAMETER_ERROR and nothing is written, so it is reported
+    // independently of RECORD_TOO_BIG — which the same ops raise for a
+    // result that clears the cap but outgrows the namespace record limit.
+    //=================================================================
+
+    @Test
+    public void repeatPastResultCapRaisesParameter() {
+        put("hello");
+
+        // Estimated as old_size * count.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).repeat(RESULT_SIZE_CAP)
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void padStartPastResultCapRaisesParameter() {
+        put("hello");
+
+        // Estimated as targetLength * 4 — worst-case UTF-8 expansion.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).padStart(RESULT_SIZE_CAP / 4 + 1, "*")
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void padEndPastResultCapRaisesParameter() {
+        put("hello");
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).padEnd(RESULT_SIZE_CAP / 4 + 1, "*")
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void concatPastResultCapRaisesParameter() {
+        put("hello");
+
+        char[] filler = new char[RESULT_SIZE_CAP];
+        Arrays.fill(filler, 'x');
+
+        // Estimated as old_size + argument size, so only the argument can carry
+        // the result past the cap.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).stringConcat(new String(filler))
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    //-----------------------------------------------------------------
+    // Helpers
+    //-----------------------------------------------------------------
+
+    private static void put(String value) {
+        session.delete(KEY).execute();
+
+        session.upsert(KEY)
+            .bin(BIN).setTo(value)
+            .execute();
     }
 
     private void seed(Key key, Consumer<ChainableOperationBuilder> configure) {

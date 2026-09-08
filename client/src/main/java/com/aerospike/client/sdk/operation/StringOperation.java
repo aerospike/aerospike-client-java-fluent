@@ -213,7 +213,8 @@ public final class StringOperation {
 
     /**
      * Create string {@code startsWith} operation. Returns {@code true} if the bin begins
-     * with {@code prefix}, {@code false} otherwise.
+     * with {@code prefix}, {@code false} otherwise. Matching is Unicode canonical, not
+     * byte-exact: a prefix in a different normalization form than the source still matches.
      *
      * @param binName   name of the string bin
      * @param prefix    prefix to test for
@@ -227,7 +228,8 @@ public final class StringOperation {
 
     /**
      * Create string {@code endsWith} operation. Returns {@code true} if the bin ends
-     * with {@code suffix}, {@code false} otherwise.
+     * with {@code suffix}, {@code false} otherwise. Matching is Unicode canonical, not
+     * byte-exact: a prefix in a different normalization form than the source still matches.
      *
      * @param binName   name of the string bin
      * @param suffix    suffix to test for
