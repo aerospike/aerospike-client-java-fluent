@@ -39,7 +39,7 @@ import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 public class IndexQueryBuilderImpl extends QueryImpl {
-    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
+    private static final Logger log = LoggerFactory.getLogger(Loggers.QUERY);
 
     private final DataSet dataSet;
 
