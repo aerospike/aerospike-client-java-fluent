@@ -1135,6 +1135,42 @@ public class OperateStringTest extends ClusterTest {
     }
 
     //-----------------------------------------------------------------
+    // More string tests.
+    //-----------------------------------------------------------------
+
+    @Test
+    public void snipFromStartTruncatesToEnd() {
+        put("hello world");
+
+        Record rec = session.upsert(KEY)
+            .bin(BIN).snip(5)
+            .execute()
+            .getFirstRecord();
+
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void snipFromNegativeStartCountsFromEnd() {
+        put("hello world");
+
+        Record rec = session.upsert(KEY)
+            .bin(BIN).snip(-5)
+            .execute()
+            .getFirstRecord();
+
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello ", rec.getString(BIN));
+    }
+
+    //-----------------------------------------------------------------
     // Helpers
     //-----------------------------------------------------------------
 

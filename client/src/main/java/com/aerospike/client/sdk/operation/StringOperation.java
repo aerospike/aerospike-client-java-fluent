@@ -525,6 +525,30 @@ public final class StringOperation {
     /**
      * Create string {@code snip} operation that removes the half-open codepoint range
      * {@code [start, end)} from the bin.
+     * <p>
+     * The server's snip argument list is positional — {@code start}, {@code end},
+     * {@code flags} — so this form cannot carry the {@code flags} without also
+     * supplying an explicit {@code end}: they are accepted for signature parity with the
+     * other modify operations and are <strong>not</strong> transmitted. Use
+     * {@link #snip(int, String, int, int, CTX...)} when the write flags must be
+     * honored.
+     *
+     * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
+     * @param binName   name of the string bin
+     * @param start     first codepoint to remove (inclusive)
+     * @param end       one past the last codepoint to remove (exclusive)
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation snip(int flags, String binName, int start, CTX... ctx) {
+        validateWriteFlags("string_snip", flags, false, ctx);
+        byte[] bytes = Pack.pack(SNIP, start, ctx);
+        return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code snip} operation that removes the half-open codepoint range
+     * {@code [start, end)} from the bin.
      *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin

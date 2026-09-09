@@ -3190,7 +3190,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Queues string {@code snip} modify: remove half-open range {@code [start, end)}.
+     * Queues string {@code snip} modify: remove half-open range from {@code start} to the end of the string.
+     */
+    public T snip(int start) {
+        return addStringModifyOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start));
+    }
+
+    /**
+     * Queues string {@code snip} modify: remove range {@code [start, end)}.
      */
     public T snip(int start, int end) {
         return addStringModifyOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start, end));

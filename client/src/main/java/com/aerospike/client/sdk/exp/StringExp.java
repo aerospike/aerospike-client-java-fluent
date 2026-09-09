@@ -602,6 +602,12 @@ public final class StringExp {
      * Create expression that removes codepoints from {@code src} starting at codepoint
      * {@code start} through the end, returning the resulting string. Does not modify
      * the underlying bin.
+     * <p>
+     * The server's snip argument list is positional — {@code start}, {@code end},
+     * {@code flags} — so this form cannot carry the {@code flags} without also
+     * supplying an explicit {@code end}: they are accepted for signature parity with the
+     * other modify expressions and are <strong>not</strong> transmitted. Use
+     * {@link #snip(int, Exp, Exp, Exp)} when the write flags must be honored.
      *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param start     first codepoint to remove (inclusive)
@@ -610,7 +616,7 @@ public final class StringExp {
      */
     public static Exp snip(int flags, Exp start, Exp src) {
         validateWriteFlags("string_snip", flags, false);
-        byte[] bytes = Pack.pack(SNIP, start, flags);
+        byte[] bytes = Pack.pack(SNIP, start);
         return addModify(src, bytes);
     }
 
