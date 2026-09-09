@@ -104,16 +104,19 @@ public class FilterIndexRangeIntegrationTest extends ClusterTest {
         String k2Loc = "{ \"type\": \"AeroCircle\", \"coordinates\": [[-121.0, 38.0], 3000.0 ] }";
 
         session.upsert(dataSet.ids("k1"))
-            .bins(ageBin, tagBin, mapBin, blobBin)
-            .values(25, tagMatch, mapWithKey, blobBytes)
+            .bin(ageBin).setTo(25)
+            .bin(tagBin).setTo(tagMatch)
+            .bin(mapBin).setTo(mapWithKey)
+            .bin(blobBin).setTo(blobBytes)
             .execute();
         session.upsert(dataSet.ids("k1"))
             .bin(locBin).setToGeoJson(k1Loc)
             .execute();
 
         session.upsert(dataSet.ids("k2"))
-            .bins(ageBin, tagBin, mapBin)
-            .values(30, "ordinary", new HashMap<String, String>())
+            .bin(ageBin).setTo(30)
+            .bin(tagBin).setTo("ordinary")
+            .bin(mapBin).setTo(new HashMap<String, String>())
             .execute();
         session.upsert(dataSet.ids("k2"))
             .bin(locBin).setToGeoJson(k2Loc)

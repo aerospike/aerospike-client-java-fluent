@@ -50,14 +50,12 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnWrite");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
         session.doInTransaction(txnSession -> {
             RecordStream rs = txnSession.upsert(key)
-                .bins(binName)
-                .values("val2")
+                .bin(binName).setTo("val2")
                 .execute();
 
             assertTrue(rs.hasNext());
@@ -75,13 +73,11 @@ public class TxnTest extends ClusterTest {
 
         session.doInTransaction(txnSession -> {
             txnSession.upsert(key)
-                .bins(binName)
-                .values("val1")
+                .bin(binName).setTo("val1")
                 .execute();
 
             txnSession.upsert(key)
-                .bins(binName)
-                .values("val2")
+                .bin(binName).setTo("val2")
                 .execute();
         });
 
@@ -96,15 +92,13 @@ public class TxnTest extends ClusterTest {
 
         session.doInTransaction(txnSession1 -> {
             txnSession1.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
             session.doInTransaction(txnSession2 -> {
                 AerospikeException ae = assertThrows(AerospikeException.class, () -> {
                     RecordStream rs = txnSession2.upsert(key)
-                        .bins(binName)
-                        .values("val2")
+                        .bin(binName).setTo("val2")
                         .execute();
 
                     assertTrue(rs.hasNext());
@@ -141,7 +135,7 @@ public class TxnTest extends ClusterTest {
 
         try {
             Session setup = contentionCluster.createSession(Behavior.DEFAULT);
-            setup.upsert(key).bins(binName).values("seed").execute();
+            setup.upsert(key).bin(binName).setTo("seed").execute();
 
             CountDownLatch holderReady = new CountDownLatch(1);
             CountDownLatch releaseHolder = new CountDownLatch(1);
@@ -149,7 +143,7 @@ public class TxnTest extends ClusterTest {
             Thread holder = new Thread(() -> {
                 TransactionalSession ts = new TransactionalSession(contentionCluster, Behavior.DEFAULT);
                 ts.doInTransaction(txn -> {
-                    txn.upsert(key).bins(binName).values("holder").execute();
+                    txn.upsert(key).bin(binName).setTo("holder").execute();
                     holderReady.countDown();
                     try {
                         assertTrue(releaseHolder.await(60, TimeUnit.SECONDS));
@@ -170,7 +164,7 @@ public class TxnTest extends ClusterTest {
             AerospikeException thrown = assertThrows(AerospikeException.class, () ->
                 contender.doInTransaction(txn -> {
                     lambdaEntries.incrementAndGet();
-                    RecordStream rs = txn.upsert(key).bins(binName).values("contender").execute();
+                    RecordStream rs = txn.upsert(key).bin(binName).setTo("contender").execute();
                     rs.next().recordOrThrow();
                 })
             );
@@ -238,20 +232,17 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnWriteBlock");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
         session.doInTransaction(txnSession -> {
             txnSession.upsert(key)
-            .bins(binName)
-            .values("val2")
+            .bin(binName).setTo("val2")
             .execute();
 
             AerospikeException ae = assertThrows(AerospikeException.class, () -> {
                 RecordStream rs = session.upsert(key)
-                    .bins(binName)
-                    .values("val3")
+                    .bin(binName).setTo("val3")
                     .execute();
 
                 assertTrue(rs.hasNext());
@@ -266,14 +257,12 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnWriteRead");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
         session.doInTransaction(txnSession -> {
             txnSession.upsert(key)
-                .bins(binName)
-                .values("val2")
+                .bin(binName).setTo("val2")
                 .execute();
 
             RecordStream rs = session.query(key).execute();
@@ -291,14 +280,12 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("mrtkey5");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
         session.doInTransaction(txnSession -> {
             txnSession.upsert(key)
-                .bins(binName)
-                .values("val2")
+                .bin(binName).setTo("val2")
                 .execute();
 
             RecordStream rs = txnSession.query(key).execute();
@@ -318,8 +305,7 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnDelete");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
         session.doInTransaction(txnSession -> {
@@ -337,8 +323,7 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnDeleteAbort");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
         session.doInTransaction(txnSession -> {
@@ -359,8 +344,7 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnDeleteTwice");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
         session.doInTransaction(txnSession -> {
@@ -388,8 +372,7 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnTouch");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
         session.doInTransaction(txnSession -> {
@@ -406,8 +389,7 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnTouchAbort");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val1")
+            .bin(binName).setTo("val1")
             .execute();
 
         session.doInTransaction(txnSession -> {
@@ -425,8 +407,8 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnOperateWrite");
 
         session.upsert(key)
-            .bins(binName, "bin2")
-            .values("val1", "bal1")
+            .bin(binName).setTo("val1")
+            .bin("bin2").setTo("bal1")
             .execute();
 
         session.doInTransaction(txnSession -> {
@@ -449,8 +431,8 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnOperateWriteAbort");
 
         session.upsert(key)
-            .bins(binName, "bin2")
-            .values("val1", "bal1")
+            .bin(binName).setTo("val1")
+            .bin("bin2").setTo("bal1")
             .execute();
 
         session.doInTransaction(txnSession -> {
@@ -477,8 +459,7 @@ public class TxnTest extends ClusterTest {
 
         for (Key key : keys) {
             session.upsert(key)
-                .bins(binName)
-                .values(1)
+                .bin(binName).setTo(1)
                 .execute();
         }
 
@@ -508,8 +489,7 @@ public class TxnTest extends ClusterTest {
 
         for (Key key : keys) {
             session.upsert(key)
-                .bins(binName)
-                .values(1)
+                .bin(binName).setTo(1)
                 .execute();
         }
 
@@ -540,16 +520,14 @@ public class TxnTest extends ClusterTest {
         Key key = args.set.id("txnMrtExpired");
 
         session.upsert(key)
-            .bins(binName)
-            .values("val0")
+            .bin(binName).setTo("val0")
             .execute();
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> session.doInTransaction(txnSession -> {
             txnSession.getCurrentTransaction().setTimeout(2);
 
             txnSession.upsert(key)
-                .bins(binName)
-                .values("val1")
+                .bin(binName).setTo("val1")
                 .execute();
 
             try {
@@ -560,8 +538,7 @@ public class TxnTest extends ClusterTest {
             }
 
             RecordStream rs = txnSession.upsert(key)
-                .bins(binName)
-                .values("val2")
+                .bin(binName).setTo("val2")
                 .execute();
 
             assertTrue(rs.hasNext());

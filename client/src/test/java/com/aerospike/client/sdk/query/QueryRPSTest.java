@@ -63,7 +63,7 @@ public class QueryRPSTest extends ClusterTest {
         session.truncate(dataSet);
 
         for (int i = 1; i <= n_records; i++) {
-            session.upsert(dataSet.ids(keyPrefix + i)).bins(binName1, binName2).values(i, i)
+            session.upsert(dataSet.ids(keyPrefix + i)).bin(binName1).setTo(i).bin(binName2).setTo(i)
                 .execute();
         }
     }

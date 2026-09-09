@@ -227,8 +227,9 @@ final class QuerySelectionIntegSupport {
         String country
     ) {
         session.upsert(dataSet.ids(fixture.keyPrefix + keyNum))
-            .bins(AGE_BIN, SCORE_BIN, COUNTRY_BIN)
-            .values(age, score, country)
+            .bin(AGE_BIN).setTo(age)
+            .bin(SCORE_BIN).setTo(score)
+            .bin(COUNTRY_BIN).setTo(country)
             .execute();
     }
 

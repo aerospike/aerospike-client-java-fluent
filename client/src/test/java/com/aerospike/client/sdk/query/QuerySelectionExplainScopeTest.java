@@ -184,8 +184,14 @@ public class QuerySelectionExplainScopeTest extends ClusterTest {
         k2Venue.put(venueLocationKey, Value.getAsGeoJSON(k2Loc));
 
         session.upsert(dataSet.ids("k1"))
-            .bins(ageBin, countryBin, tagBin, blobBin, mapBin, scoreListBin, nameBin, venueBin)
-            .values(25, "US", tagMatch, blobBytes, map, k1Scores, "alice", k1Venue)
+            .bin(ageBin).setTo(25)
+            .bin(countryBin).setTo("US")
+            .bin(tagBin).setTo(tagMatch)
+            .bin(blobBin).setTo(blobBytes)
+            .bin(mapBin).setTo(map)
+            .bin(scoreListBin).setTo(k1Scores)
+            .bin(nameBin).setTo("alice")
+            .bin(venueBin).setTo(k1Venue)
             .execute();
 
         session.upsert(dataSet.ids("k1"))
@@ -193,8 +199,12 @@ public class QuerySelectionExplainScopeTest extends ClusterTest {
             .execute();
 
         session.upsert(dataSet.ids("k2"))
-            .bins(ageBin, countryBin, tagBin, scoreListBin, nameBin, venueBin)
-            .values(30, "CA", "ordinary", k2Scores, "bob", k2Venue)
+            .bin(ageBin).setTo(30)
+            .bin(countryBin).setTo("CA")
+            .bin(tagBin).setTo("ordinary")
+            .bin(scoreListBin).setTo(k2Scores)
+            .bin(nameBin).setTo("bob")
+            .bin(venueBin).setTo(k2Venue)
             .execute();
 
         session.upsert(dataSet.ids("k2"))
