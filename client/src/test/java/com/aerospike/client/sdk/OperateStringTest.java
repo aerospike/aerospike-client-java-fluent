@@ -69,6 +69,8 @@ public class OperateStringTest extends ClusterTest {
     private static final String NFC_BIN = "nfc";
     private static final Key KEY = args.set.id("stringop-key");
     private static final String BIN = "sbin";
+    // Ceiling the server puts on a modify op's estimated result size.
+    private static final int RESULT_SIZE_CAP = 8 * 1024 * 1024;
 
     @Nested
     @DisplayName("reads")
@@ -465,6 +467,68 @@ public class OperateStringTest extends ClusterTest {
                             "StringOperation.concat(flags, [!,?], stringBin)"));
                 }
             }
+
+            @Test
+            public void createOnlyStringAppendCreatesMissingBin() {
+                String binName = "createOnlyFresh";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.CREATE_ONLY, binName, "created")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("created", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void createOnlyStringAppendOnLiveBinReturnsBinExists() {
+                String binName = "createOnlyLive";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(key, b -> b.appendOperations(
+                    StringOperation.append(StringWriteFlags.CREATE_ONLY, binName, "!"))));
+
+                assertEquals(ResultCode.BIN_EXISTS_ERROR, ae.getResultCode());
+            }
+
+            @Test
+            public void createOnlyNoFailStringAppendOnLiveBinIsNoOp() {
+                String binName = "coNoFail";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.CREATE_ONLY | StringWriteFlags.NO_FAIL, binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("original", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void updateOnlyStringAppendOnMissingBinDoesNotCreate() {
+                String binName = "updMissing";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.UPDATE_ONLY, binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertNull(rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void noFailDoesNotSuppressWrongTypeStringModify() {
+                String binName = "wrongType";
+                seed(key, b -> b.bin(binName).setTo(123));
+
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(key, b -> b.appendOperations(
+                    StringOperation.append(StringWriteFlags.NO_FAIL, binName, "!"))));
+
+                assertEquals(ResultCode.BIN_TYPE_ERROR, ae.getResultCode());
+            }
         }
 
         @Nested
@@ -613,6 +677,98 @@ public class OperateStringTest extends ClusterTest {
                         () -> assertEquals("Hello!?", rec.getString("concatenated"),
                             "StringExp.concat(flags, [!,?], stringBin s)"));
                 }
+            }
+
+            @Test
+            public void noFailSuppressedStringExpModifyReturnsOriginalString() {
+                Exp s = Exp.stringBin(STRING_BIN);
+
+                try (RecordStream rs = session.query(key)
+                    .bin("repeatFail").selectFrom(StringExp.repeat(StringWriteFlags.NO_FAIL, Exp.val(-1), s))
+                    .execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("Hello", rec.getString("repeatFail"));
+                }
+            }
+        }
+
+        /**
+         * Scopes a server defect: {@code isUpper} / {@code isLower} do not observe the
+         * result of a preceding {@code upper} / {@code lower}, though other reads on the
+         * same operand do.
+         *
+         * <p>Not front-end specific — {@code AelStringTest.isUpperAndIsLowerObserveChainedCaseOp}
+         * reproduces it through AEL source text, so it sits in the shared string-op
+         * evaluation below both the AEL compiler and these Exp builders. The two controls
+         * here are what narrow it: the classifiers are correct on an uncomputed operand,
+         * and other reads are correct on a computed one.
+         */
+        @Nested
+        @DisplayName("StringExp case classification after a case op")
+        class ChainedCaseOps {
+            Key key;
+
+            @BeforeEach
+            void seedChainedCaseRecord() {
+                key = freshKey("stringExpChainedCase");
+                seed(key, b -> b.bin(STRING_BIN).setTo("Hello World"));
+            }
+
+            /** Control: the classifiers themselves are sound on an uncomputed operand. */
+            @Test
+            @DisplayName("isUpper / isLower are correct on an uncomputed operand")
+            public void classifiersCorrectOnUncomputedOperand() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                assertAll("classifiers on uncomputed operands",
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(val HELLO)",
+                        StringExp.isUpper(Exp.val("HELLO")),
+                        rec -> assertTrue(rec.getBoolean("r"), "literal is all upper")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isLower(val hello)",
+                        StringExp.isLower(Exp.val("hello")),
+                        rec -> assertTrue(rec.getBoolean("r"), "literal is all lower")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(stringBin s)",
+                        StringExp.isUpper(s),
+                        rec -> assertFalse(rec.getBoolean("r"), "mixed-case bin is not all upper")));
+            }
+
+            /** Control: other reads do observe the case op's result. */
+            @Test
+            @DisplayName("upper / contains observe the case op result")
+            public void otherReadsObserveCaseOp() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                int flags = StringWriteFlags.DEFAULT;
+                assertAll("other reads on a computed operand",
+                    () -> assertProjection(session, key,
+                        "StringExp.upper(flags, stringBin s)",
+                        StringExp.upper(flags, s),
+                        rec -> assertEquals("HELLO WORLD", rec.getString("r"),
+                            "upper produces the uppercased value")),
+                    // "Hello World" does not contain "HELLO", so a true here can only come
+                    // from contains seeing the uppercased value.
+                    () -> assertProjection(session, key,
+                        "StringExp.contains(HELLO, upper(flags, stringBin s))",
+                        StringExp.contains(Exp.val("HELLO"), StringExp.upper(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "contains sees the case op result")));
+            }
+
+            @Disabled("server: isUpper/isLower ignore a chained case op; reproduces via AEL too")
+            @Test
+            @DisplayName("isUpper / isLower observe the case op result")
+            public void classifiersObserveCaseOp() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                int flags = StringWriteFlags.DEFAULT;
+                assertAll("classifiers on a computed operand",
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(upper(flags, stringBin s))",
+                        StringExp.isUpper(StringExp.upper(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "uppercased value is all upper")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isLower(lower(flags, stringBin s))",
+                        StringExp.isLower(StringExp.lower(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "lowercased value is all lower")));
             }
         }
 
@@ -835,6 +991,159 @@ public class OperateStringTest extends ClusterTest {
             StringOperation.append(StringWriteFlags.DEFAULT, BIN, "!", CTX.listIndex(99)))));
 
         assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
+    }
+
+    @Test
+    public void replaceMatchesAcrossNormalizationForms() {
+        // replace carries the same canonical-equivalence guarantee as find /
+        // contains above: string_modify_op_replace_K_icu routes through
+        // get_canon_search (particle_string.c) whenever the forms differ.
+        final String NFC = "caf\u00E9";       // "café" composed
+        final String NFD = "cafe\u0301";      // "café" decomposed
+
+        // Composed haystack, decomposed needle.
+        put(NFC + " au lait");
+        Record rec = session.upsert(KEY)
+            .bin(BIN).replace(NFD, "tea")
+            .execute()
+            .getFirstRecord();
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+        assertEquals("tea au lait", rec.getString(BIN));
+
+        // Decomposed haystack, composed needle.
+        put(NFD + " au lait");
+        rec = session.upsert(KEY)
+            .bin(BIN).replace(NFC, "tea")
+            .execute()
+            .getFirstRecord();
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+        assertEquals("tea au lait", rec.getString(BIN));
+    }
+
+    @Test
+    public void startsWithAndEndsWithMatchAcrossNormalizationForms() {
+        // get_canon_search has four call sites, not two: prefix and suffix
+        // matching are canonical as well, so an affix in either form matches a
+        // bin stored in the other.
+        final String NFC = "caf\u00E9";
+        final String NFD = "cafe\u0301";
+
+        put(NFC + " au lait");
+        Record rec = session.upsert(KEY)
+            .bin(BIN).startsWith(NFD)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+
+        put(NFD + " au lait");
+        rec = session.upsert(KEY)
+            .bin(BIN).startsWith(NFC)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+
+        put("au lait " + NFC);
+        rec = session.upsert(KEY)
+            .bin(BIN).endsWith(NFD)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+
+        put("au lait " + NFD);
+        rec = session.upsert(KEY)
+            .bin(BIN).endsWith(NFC)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+    }
+
+    //=================================================================
+    // Result-size cap
+    //
+    // Modify ops bound their estimated result at prepare time
+    // (particle_string.c string_modify_set_estimated_size). Exceeding the
+    // bound is PARAMETER_ERROR and nothing is written, so it is reported
+    // independently of RECORD_TOO_BIG — which the same ops raise for a
+    // result that clears the cap but outgrows the namespace record limit.
+    //=================================================================
+
+    @Test
+    public void repeatPastResultCapRaisesParameter() {
+        put("hello");
+
+        // Estimated as old_size * count.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).repeat(RESULT_SIZE_CAP)
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void padStartPastResultCapRaisesParameter() {
+        put("hello");
+
+        // Estimated as targetLength * 4 — worst-case UTF-8 expansion.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).padStart(RESULT_SIZE_CAP / 4 + 1, "*")
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void padEndPastResultCapRaisesParameter() {
+        put("hello");
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).padEnd(RESULT_SIZE_CAP / 4 + 1, "*")
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void concatPastResultCapRaisesParameter() {
+        put("hello");
+
+        char[] filler = new char[RESULT_SIZE_CAP];
+        Arrays.fill(filler, 'x');
+
+        // Estimated as old_size + argument size, so only the argument can carry
+        // the result past the cap.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).stringConcat(new String(filler))
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    //-----------------------------------------------------------------
+    // Helpers
+    //-----------------------------------------------------------------
+
+    private static void put(String value) {
+        session.delete(KEY).execute();
+
+        session.upsert(KEY)
+            .bin(BIN).setTo(value)
+            .execute();
     }
 
     private void seed(Key key, Consumer<ChainableOperationBuilder> configure) {
