@@ -243,7 +243,9 @@ public final class StringOperation {
 
     /**
      * Create string {@code toInteger} operation. Parses the string as an int64.
-     * Returns {@code AEROSPIKE_ERR_PARAMETER} if the bin cannot be parsed as an integer.
+     * Fails with {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_CONVERSION_FAILED} if the bin
+     * cannot be parsed as an integer.
      *
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -256,7 +258,9 @@ public final class StringOperation {
 
     /**
      * Create string {@code toDouble} operation. Parses the string as a 64-bit float.
-     * Returns {@code AEROSPIKE_ERR_PARAMETER} if the bin cannot be parsed as a double.
+     * Fails with {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_CONVERSION_FAILED} if the bin
+     * cannot be parsed as a double.
      *
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -378,7 +382,10 @@ public final class StringOperation {
 
     /**
      * Create string {@code b64Decode} operation. Treats the bin as base64-encoded text
-     * and returns the decoded bytes as a blob.
+     * and returns the decoded bytes as a blob.  Fails with
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_B64_INVALID} if the bin does not
+     * hold valid base64.
      *
      * @param binName   name of the string bin holding base64 text
      * @param ctx       optional path into a string nested inside a list or map
@@ -787,9 +794,12 @@ public final class StringOperation {
     //-----------------------------------------------------------------
 
     /**
-     * Create {@code toString} operation that converts an integer, float, string, or
-     * blob bin to its string representation. Returns
-     * {@code AEROSPIKE_ERR_INCOMPATIBLE_TYPE} for any other bin type.
+     * Create {@code toString} operation that converts an integer, float, boolean,
+     * string, or blob bin to its string representation. Returns
+     * {@code AEROSPIKE_ERR_INCOMPATIBLE_TYPE} for any other bin type. A blob bin whose
+     * bytes are not valid UTF-8 fails with
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_UTF8_INVALID}.
      * <p>
      * Unlike the other builders in this class, {@code toString} does not accept a
      * {@link CTX}. The other string operations are sent as {@code STRING_READ} /
