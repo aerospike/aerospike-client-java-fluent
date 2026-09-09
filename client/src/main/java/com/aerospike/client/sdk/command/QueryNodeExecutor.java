@@ -82,7 +82,11 @@ public final class QueryNodeExecutor extends NodeExecutor {
             throw parser.toException();
         }
 
-        Record record = parser.parseRecord(false);
+        // A query carrying read operations can return the same bin name more than once,
+        // so its results must be merged into a list rather than overwriting each other.
+        // Since query now supports operations, the parseRecord arguments must reflect
+        // if an operation was used.
+        Record record = parser.parseRecord(query.ops != null && !query.ops.isEmpty());
 
         if (! valid) {
             throw new AerospikeException.QueryTerminated();
