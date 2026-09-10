@@ -1239,6 +1239,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     /**
      * Inner class implementing BinsValuesOperations for the chainable context.
      */
+    /* TODO Not currently used. Should this be deleted?
     private class ChainableBinsValuesOperations implements BinsValuesOperations {
         @Override
         public Session getSession() {
@@ -1349,5 +1350,5 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 //                }
 //            }
 //        }
-    }
+    }*/
 }

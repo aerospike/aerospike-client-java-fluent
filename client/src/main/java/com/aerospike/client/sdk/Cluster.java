@@ -73,7 +73,7 @@ public class Cluster implements Closeable {
     private Version version;
     private boolean versionGE8;
     private boolean versionGE812;
-    private boolean versionGE813;
+    private boolean versionGE82;
     private boolean metricsEnabled;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
@@ -606,12 +606,12 @@ public class Cluster implements Closeable {
      * and expression writes (wire form {@code [128, utf8]}).
      *
      * <p>True when the cluster's {@linkplain #getVersion() minimum server version} is
-     * {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     * {@link Version#SERVER_VERSION_8_2} or newer.</p>
      *
      * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
      */
     public boolean supportsAel() {
-        return versionGE813;
+        return versionGE82;
     }
 
     /**
@@ -626,19 +626,19 @@ public class Cluster implements Closeable {
     /**
      * Whether this cluster's minimum server version supports the new string operations.
      *
-     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_2} or newer.</p>
      */
     public boolean supportsStringOperations() {
-        return versionGE813;
+        return versionGE82;
     }
 
     /**
      * Whether this cluster's minimum server version supports server side index selection.
      *
-     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_2} or newer.</p>
      */
     public boolean supportsQuerySelection() {
-        return versionGE813;
+        return versionGE82;
     }
 
     /**
@@ -662,7 +662,7 @@ public class Cluster implements Closeable {
         this.version = version;
         this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
         this.versionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
-        this.versionGE813 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
+        this.versionGE82 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
     }
 
     /**

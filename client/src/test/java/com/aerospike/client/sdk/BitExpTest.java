@@ -645,7 +645,7 @@ public class BitExpTest extends ClusterTest {
     @Test
     public void b64EncodeRead() {
         Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "bit b64Encode requires server version 8.1.3 or later");
+            "bit b64Encode requires server version 8.2.0 or later");
 
         Key key = args.set.id("b64EncodeRead");
 

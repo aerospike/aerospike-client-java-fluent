@@ -48,7 +48,7 @@ import com.aerospike.client.sdk.util.Version;
 public class IndexProbePlannerRoutingTest {
 
     private static Cluster clusterWithQuerySelection() {
-        return TestClusters.disconnected(Version.SERVER_VERSION_8_1_3);
+        return TestClusters.disconnected(Version.SERVER_VERSION_8_2);
     }
 
     @Test

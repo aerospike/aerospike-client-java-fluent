@@ -53,7 +53,7 @@ import com.aerospike.client.sdk.operation.StringWriteFlags;
 
 /**
  * Integration tests for string expressions: {@link BinBuilder} / {@link StringOperation}
- * (always run on 8.1.3+), client {@link Exp} API via {@link StringExp}, and string AEL
+ * (always run on 8.2.0+), client {@link Exp} API via {@link StringExp}, and string AEL
  * equivalents (disabled until the server validates them in selectFrom/filter).
  */
 @RequiresServerFeature(ServerFeature.STRING_OPS)

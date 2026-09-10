@@ -1986,7 +1986,7 @@ public class Session {
     /**
      * Create an expression-based secondary index from an AEL (Aerospike Expression Language)
      * string. The AEL text is compiled by the server, so the cluster must support server-side
-     * AEL parsing (see {@link Cluster#supportsAel()}, which requires server version 8.1.3 or
+     * AEL parsing (see {@link Cluster#supportsAel()}, which requires server version 8.2.0 or
      * newer).
      * This asynchronous server call will return before command is complete.
      * The user can optionally wait for command completion by using the returned
@@ -2125,7 +2125,6 @@ public class Session {
         }
         else {
             String indexTypeString = (indexType == IndexType.INTEGER) ?
-                // && currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
                     "NUMERIC" : indexType.toString();
 
             if (exp != null) {

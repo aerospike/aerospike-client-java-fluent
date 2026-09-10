@@ -54,7 +54,7 @@ import com.aerospike.client.sdk.util.Packer;
  * {@link com.aerospike.client.sdk.exp.MapExp#getByKey} (which do take CTX) to extract
  * the leaf, then pass the resulting {@code Exp} as {@code src}.
  * <p>
- * String expressions require server version 8.1.3 or later.
+ * String expressions require server version 8.2.0 or later.
  *
  * <pre>{@code
  * // Filter records whose "name" bin starts with "hello".

@@ -45,7 +45,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}),
- * server string read/modify ops (server 8.1.3+; fluent methods such as {@link #strlen},
+ * server string read/modify ops (server 8.2.0+; fluent methods such as {@link #strlen},
  * {@link #substr}, {@link #find} delegate to {@link com.aerospike.client.sdk.operation.StringOperation};
  * see also {@code docs/string-operations.md} in the SDK repo for AEL cross-reference), numeric {@link #add},
  * expression-backed {@link #selectFrom}, {@link #insertFrom}, {@link #updateFrom}, {@link #upsertFrom}, and nested
@@ -2805,7 +2805,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     // ----------------------------------------
-    // String server operations (server 8.1.3+)
+    // String server operations (server 8.2.0+)
     // ----------------------------------------
 
     /**

@@ -1237,7 +1237,7 @@ public class OperateListTest extends ClusterTest {
     @Test
     public void operateListJoin() {
         Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "List join requires server version 8.1.3 or later");
+            "List join requires server version 8.2.0 or later");
 
         Key key = args.set.id("oplkeyjoin");
 
@@ -1267,7 +1267,7 @@ public class OperateListTest extends ClusterTest {
     @Test
     public void operateListJoinEmptyList() {
         Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "List join requires server version 8.1.3 or later");
+            "List join requires server version 8.2.0 or later");
 
         Key key = args.set.id("oplkeyjoinempty");
 
@@ -1288,7 +1288,7 @@ public class OperateListTest extends ClusterTest {
     @Test
     public void operateListJoinNonStringItemFails() {
         Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "List join requires server version 8.1.3 or later");
+            "List join requires server version 8.2.0 or later");
 
         Key key = args.set.id("oplkeyjoinbad");
 
@@ -1316,7 +1316,7 @@ public class OperateListTest extends ClusterTest {
     @Test
     public void operateListJoinNested() {
         Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "List join requires server version 8.1.3 or later");
+            "List join requires server version 8.2.0 or later");
 
         Key key = args.set.id("oplkeyjoinctx");
 

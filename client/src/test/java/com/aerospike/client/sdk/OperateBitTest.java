@@ -1024,7 +1024,7 @@ public class OperateBitTest extends ClusterTest {
     @Test
     public void operateBitB64Encode() {
         Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "bit b64Encode requires server version 8.1.3 or later");
+            "bit b64Encode requires server version 8.2.0 or later");
 
         session.delete(key).execute();
 
@@ -1055,7 +1055,7 @@ public class OperateBitTest extends ClusterTest {
     @Test
     public void operateBitB64EncodeRoundTripsThroughB64Decode() {
         Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "bit b64Encode requires server version 8.1.3 or later");
+            "bit b64Encode requires server version 8.2.0 or later");
 
         session.delete(key).execute();
 

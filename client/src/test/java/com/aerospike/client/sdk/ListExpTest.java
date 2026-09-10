@@ -499,7 +499,7 @@ public class ListExpTest extends ClusterTest {
     }
 
     /**
-     * String AEL equivalents of the {@link Exp} tests above. Skipped on 8.1.3+ until
+     * String AEL equivalents of the {@link Exp} tests above. Skipped on 8.2.0+ until
      * the server accepts these forms in selectFrom/filter (currently Parameter error).
      */
     @Nested
@@ -560,7 +560,7 @@ public class ListExpTest extends ClusterTest {
     @Test
     public void listJoinExp() {
         Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "List join requires server version 8.1.3 or later");
+            "List join requires server version 8.2.0 or later");
 
         Key key = args.set.id("explistjoin");
 

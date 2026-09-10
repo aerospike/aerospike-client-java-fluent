@@ -17,7 +17,6 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -247,7 +246,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 + " AS_ERR_GENERATION, but the Enterprise path omits the matching"
                 + " as_error_details_set_fmt(AS_SUB_NONE, \"delete generation mismatch\"), so the server sends"
                 + " no detail and the client falls back to the generic ResultCode text. The fix belongs in the"
-                + " server; see docs/strong-consistency-8.1.3-findings.md");
+                + " server; see docs/strong-consistency-8.2.0-findings.md");
 
         Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
             .on(Selectors.all(), ops -> ops
@@ -290,7 +289,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
      * server fix landed and both tests can go back to asserting the same thing.</p>
      */
     @Test
-    @Tag(KnownDefect.TAG)
     public void testDurableDeleteGenerationMismatchOmitsDetail() {
         Assumptions.assumeTrue(args.enterprise, "durable delete is an Enterprise server feature");
 
@@ -314,15 +312,8 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         assertEquals(ResultCode.GENERATION_ERROR, ae.getResultCode(), "Unexpected result code");
-
-        KnownDefect.pinned(
-            "tombstone_master() in delete_ee.c fails generation_check and sets AS_ERR_GENERATION without the"
-                + " matching as_error_details_set_fmt(AS_SUB_NONE, \"delete generation mismatch\") that"
-                + " drop_master() in delete.c has, so the server sends no detail and the client falls back to"
-                + " the generic ResultCode text. Expected the message to name the generation, as the"
-                + " non-durable path does",
-            () -> assertFalse(ae.getBaseMessage().contains("generation"),
-                    "server now supplies a generation detail on the durable path: " + ae.getBaseMessage()));
+        assertTrue(ae.getBaseMessage().contains("generation"),
+            "server now supplies a generation detail on the durable path: " + ae.getBaseMessage());
     }
 
     // ---------------------------------------------------------------------

@@ -96,7 +96,7 @@ public class ExampleRunner {
             if (example.requiresStringAel() && !Example.supportsStringAel(context.cluster())) {
                 throw new ExampleSkipException(
                     "server is " + context.cluster().getRandomNode().getVersion()
-                        + "; string AEL requires 8.1.3+");
+                        + "; string AEL requires 8.2.0+");
             }
             example.run(context);
             definition.fixture().verify(context);

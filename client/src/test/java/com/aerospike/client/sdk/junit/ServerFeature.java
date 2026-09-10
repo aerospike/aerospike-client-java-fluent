@@ -20,7 +20,7 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.util.Version;
 
-/** Cluster capabilities gated in integration tests (all require {@link Version#SERVER_VERSION_8_1_3}+). */
+/** Cluster capabilities gated in integration tests (all require {@link Version#SERVER_VERSION_8_2}+). */
 public enum ServerFeature {
     AEL("server does not support AEL"),
     STRING_OPS("server does not support string operations"),
@@ -71,6 +71,6 @@ public enum ServerFeature {
     }
 
     public String skipMessage() {
-        return reason + " (requires " + Version.SERVER_VERSION_8_1_3 + "+)";
+        return reason + " (requires " + Version.SERVER_VERSION_8_2 + "+)";
     }
 }
