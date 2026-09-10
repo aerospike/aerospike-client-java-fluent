@@ -35,6 +35,7 @@ import com.aerospike.client.sdk.exp.CdtExp;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.operation.StringOperation;
 import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
@@ -2129,5 +2130,98 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
+    }
+
+    // =================================
+    // String reads at a CDT path
+    // =================================
+
+    private CTX[] stringContext() {
+        params.pushCurrentToContext();
+        return params.context();
+    }
+
+    @Override
+    public T strlen() { return addOpAndReturn(StringOperation.strlen(binName, stringContext())); }
+
+    @Override
+    public T substr(int start) { return addOpAndReturn(StringOperation.substr(binName, start, stringContext())); }
+
+    @Override
+    public T substr(int start, int end) {
+        return addOpAndReturn(StringOperation.substr(binName, start, end, stringContext()));
+    }
+
+    @Override
+    public T charAt(int index) { return addOpAndReturn(StringOperation.charAt(binName, index, stringContext())); }
+
+    @Override
+    public T find(String needle) { return addOpAndReturn(StringOperation.find(binName, needle, stringContext())); }
+
+    @Override
+    public T find(String needle, int occurrence) {
+        return addOpAndReturn(StringOperation.find(binName, needle, occurrence, stringContext()));
+    }
+
+    @Override
+    public T contains(String needle) {
+        return addOpAndReturn(StringOperation.contains(binName, needle, stringContext()));
+    }
+
+    @Override
+    public T startsWith(String prefix) {
+        return addOpAndReturn(StringOperation.startsWith(binName, prefix, stringContext()));
+    }
+
+    @Override
+    public T endsWith(String suffix) {
+        return addOpAndReturn(StringOperation.endsWith(binName, suffix, stringContext()));
+    }
+
+    @Override
+    public T stringToInteger() { return addOpAndReturn(StringOperation.toInteger(binName, stringContext())); }
+
+    @Override
+    public T stringToDouble() { return addOpAndReturn(StringOperation.toDouble(binName, stringContext())); }
+
+    @Override
+    public T byteLength() { return addOpAndReturn(StringOperation.byteLength(binName, stringContext())); }
+
+    @Override
+    public T isNumeric() { return addOpAndReturn(StringOperation.isNumeric(binName, stringContext())); }
+
+    @Override
+    public T isNumeric(int numericType) {
+        return addOpAndReturn(StringOperation.isNumeric(binName, numericType, stringContext()));
+    }
+
+    @Override
+    public T isUpper() { return addOpAndReturn(StringOperation.isUpper(binName, stringContext())); }
+
+    @Override
+    public T isLower() { return addOpAndReturn(StringOperation.isLower(binName, stringContext())); }
+
+    @Override
+    public T stringToBlob() { return addOpAndReturn(StringOperation.toBlob(binName, stringContext())); }
+
+    @Override
+    public T split() { return addOpAndReturn(StringOperation.split(binName, stringContext())); }
+
+    @Override
+    public T split(String separator) {
+        return addOpAndReturn(StringOperation.split(binName, separator, stringContext()));
+    }
+
+    @Override
+    public T b64Decode() { return addOpAndReturn(StringOperation.b64Decode(binName, stringContext())); }
+
+    @Override
+    public T regexCompare(String pattern) {
+        return addOpAndReturn(StringOperation.regexCompare(binName, pattern, stringContext()));
+    }
+
+    @Override
+    public T regexCompare(String pattern, int regexFlags) {
+        return addOpAndReturn(StringOperation.regexCompare(binName, pattern, regexFlags, stringContext()));
     }
 }

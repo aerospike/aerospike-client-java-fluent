@@ -34,8 +34,9 @@ public final class StringWriteFlags {
 	 * <p>
 	 * Mutually exclusive with {@link #UPDATE_ONLY}. Valid only for create-capable
 	 * string modify operations: insert, overwrite, concat, append, prepend,
-	 * padStart, padEnd, and repeat. Invalid when operating through a CDT
-	 * {@code CTX} path.
+	 * padStart, padEnd, and repeat. On any other string modify op the server rejects
+	 * it with PARAMETER_ERROR via that op's flag mask. Invalid when operating through
+	 * a CDT {@code CTX} path.
 	 */
 	public static final int CREATE_ONLY = 1;
 

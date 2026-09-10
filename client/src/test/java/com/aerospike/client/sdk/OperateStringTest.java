@@ -970,6 +970,27 @@ public class OperateStringTest extends ClusterTest {
     }
 
     @Test
+    public void fluentStringOpsOnStringNestedInList() {
+        runDelete(KEY);
+        seed(KEY, b -> b.bin(BIN).setTo(Arrays.asList("alpha", "beta", "gamma")));
+
+        session.upsert(KEY)
+            .bin(BIN).onListIndex(1).append("!")
+            .execute();
+
+        try (RecordStream rs = session.query(KEY)
+            .bin(BIN).onListIndex(1).strlen()
+            .execute()) {
+            Record rec = rs.getFirstRecord();
+            assertEquals(5L, rec.operationResult(0).getLong());
+        }
+
+        try (RecordStream rs = session.query(KEY).execute()) {
+            assertEquals(Arrays.asList("alpha", "beta!", "gamma"), rs.getFirstRecord().getList(BIN));
+        }
+    }
+
+    @Test
     public void noFailFlagDecidesOutcomeOnUnreachableCtxPath() {
         runDelete(KEY);
 
@@ -1126,7 +1147,7 @@ public class OperateStringTest extends ClusterTest {
         // the result past the cap.
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             session.upsert(KEY)
-                .bin(BIN).stringConcat(new String(filler))
+                .bin(BIN).concat(new String(filler))
                 .execute()
                 .getFirstRecord();
         });
@@ -1168,6 +1189,206 @@ public class OperateStringTest extends ClusterTest {
             .getFirstRecord();
 
         assertEquals("hello ", rec.getString(BIN));
+    }
+
+    //=================================================================
+    // CREATE_ONLY / UPDATE_ONLY write flags
+    //
+    // Bin-existence predicates carried in the trailing policy-flags slot
+    // (particle_string.c string_modify). CREATE_ONLY is accepted only by
+    // the eight additive create-ops; every other modify op rejects it via
+    // its per-op flag mask. Combining CREATE_ONLY with UPDATE_ONLY, and
+    // CREATE_ONLY under a CTX path, are both rejected during argument
+    // parsing (string_parse_flags) — upstream of every NO_FAIL test, so
+    // NO_FAIL cannot suppress them.
+    //=================================================================
+
+    @Test
+    public void createOnlyOnMissingBinCreatesIt() {
+        session.delete(KEY).execute();
+
+        session.upsert(KEY)
+            .bin("other").setTo("untouched")
+            .execute();
+
+        session.upsert(KEY)
+            .bin(BIN).append("hello", ops -> ops.createOnly())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyOnLiveBinRaisesBinExists() {
+        put("hello");
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).append("!", ops -> ops.createOnly())
+                .execute();
+        });
+
+        assertEquals(ResultCode.BIN_EXISTS_ERROR, ae.getResultCode());
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyWithNoFailOnLiveBinIsSilentNoOp() {
+        // The one CREATE_ONLY rejection NO_FAIL does suppress: it is tested
+        // inside string_modify, not during argument parsing. The bin keeps its
+        // prior value rather than being nulled.
+        put("hello");
+
+        session.upsert(KEY)
+            .bin(BIN).append("!", ops -> ops.createOnly().noFail())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void updateOnlyOnMissingBinDoesNotCreateIt() {
+        // append creates a missing bin from empty by default; UPDATE_ONLY
+        // disables that path, leaving the op a silent no-op.
+        session.delete(KEY).execute();
+
+        session.upsert(KEY)
+            .bin("other").setTo("untouched")
+            .execute();
+
+        session.upsert(KEY)
+            .bin(BIN).append("hello", ops -> ops.updateOnly())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals(null, rec.getValue(BIN));
+        assertEquals("untouched", rec.getString("other"));
+    }
+
+    @Test
+    public void updateOnlyOnLiveBinApplies() {
+        put("hello");
+
+        session.upsert(KEY)
+            .bin(BIN).append(" world", ops -> ops.updateOnly())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello world", rec.getString(BIN));
+    }
+
+    @Test
+    public void updateOnlyAppliesToNonCreateModifyOp() {
+        // UPDATE_ONLY is valid on every string modify op, not just the
+        // create-capable ones.
+        put("hello");
+
+        session.upsert(KEY)
+            .bin(BIN).upper(ops -> ops.updateOnly())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("HELLO", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyOnNonCreateModifyOpRaisesParameterError() {
+        // upper carries the update-only flag mask, so CREATE_ONLY is not a
+        // legal flag for it at all — distinguishing it from the eight
+        // additive create-ops exercised above.
+        put("hello");
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).upper(ops -> ops.createOnly())
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyWithUpdateOnlyRaisesParameterError() {
+        put("hello");
+
+        assertThrows(java.lang.IllegalStateException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).append("!", ops -> ops.createOnly().updateOnly())
+                .execute();
+        });
+
+        assertThrows(java.lang.IllegalStateException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).append("!", ops -> ops.createOnly().updateOnly().noFail())
+                .execute();
+        });
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyWithCtxRaisesParameterError() {
+        List<String> list = new ArrayList<>();
+        list.add("alpha");
+        list.add("beta");
+
+        session.upsert(KEY)
+            .bin(BIN).setTo(list)
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).onListIndex(1).append("!", ops -> ops.createOnly())
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+
+        AerospikeException noFailError = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).onListIndex(1).append("!", ops -> ops.createOnly().noFail())
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, noFailError.getResultCode());
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals(Arrays.asList("alpha", "beta"), rec.getList(BIN));
     }
 
     //-----------------------------------------------------------------

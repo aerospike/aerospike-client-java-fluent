@@ -3108,34 +3108,34 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     /**
      * Queues string {@code concat} modify: append {@code fragment}.
      */
-    public T stringConcat(String fragment) {
+    public T concat(String fragment) {
         return addStringModifyOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragment));
     }
 
-    public T stringConcat(String fragment, Consumer<StringWriteOptions> options) {
+    public T concat(String fragment, Consumer<StringWriteOptions> options) {
         StringWriteOptions o = new StringWriteOptions();
         options.accept(o);
-        return stringConcat(fragment, o);
+        return concat(fragment, o);
     }
 
-    public T stringConcat(String fragment, StringWriteOptions options) {
+    public T concat(String fragment, StringWriteOptions options) {
         return addStringModifyOp(StringOperation.concat(options.toFlags(), binName, fragment));
     }
 
     /**
      * Queues string {@code concat} modify: append all strings in order.
      */
-    public T stringConcat(List<String> fragments) {
+    public T concat(List<String> fragments) {
         return addStringModifyOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragments));
     }
 
-    public T stringConcat(List<String> fragments, Consumer<StringWriteOptions> options) {
+    public T concat(List<String> fragments, Consumer<StringWriteOptions> options) {
         StringWriteOptions o = new StringWriteOptions();
         options.accept(o);
-        return stringConcat(fragments, o);
+        return concat(fragments, o);
     }
 
-    public T stringConcat(List<String> fragments, StringWriteOptions options) {
+    public T concat(List<String> fragments, StringWriteOptions options) {
         return addStringModifyOp(StringOperation.concat(options.toFlags(), binName, fragments));
     }
 
