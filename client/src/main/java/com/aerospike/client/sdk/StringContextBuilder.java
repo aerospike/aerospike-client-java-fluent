@@ -27,12 +27,12 @@ public interface StringContextBuilder<T> extends StringReadContextBuilder<T> {
     T overwrite(int index, String value);
     T overwrite(int index, String value, Consumer<StringWriteOptions> options);
     T overwrite(int index, String value, StringWriteOptions options);
-    T stringConcat(String fragment);
-    T stringConcat(String fragment, Consumer<StringWriteOptions> options);
-    T stringConcat(String fragment, StringWriteOptions options);
-    T stringConcat(List<String> fragments);
-    T stringConcat(List<String> fragments, Consumer<StringWriteOptions> options);
-    T stringConcat(List<String> fragments, StringWriteOptions options);
+    T concat(String fragment);
+    T concat(String fragment, Consumer<StringWriteOptions> options);
+    T concat(String fragment, StringWriteOptions options);
+    T concat(List<String> fragments);
+    T concat(List<String> fragments, Consumer<StringWriteOptions> options);
+    T concat(List<String> fragments, StringWriteOptions options);
     T append(String fragment);
     T append(String fragment, Consumer<StringWriteOptions> options);
     T append(String fragment, StringWriteOptions options);

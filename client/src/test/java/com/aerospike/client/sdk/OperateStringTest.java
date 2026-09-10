@@ -1147,7 +1147,7 @@ public class OperateStringTest extends ClusterTest {
         // the result past the cap.
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             session.upsert(KEY)
-                .bin(BIN).stringConcat(new String(filler))
+                .bin(BIN).concat(new String(filler))
                 .execute()
                 .getFirstRecord();
         });

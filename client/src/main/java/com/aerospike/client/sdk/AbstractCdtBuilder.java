@@ -1438,22 +1438,22 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     public T overwrite(int index, String value, StringWriteOptions options) {
         return opBuilder.addOp(StringOperation.overwrite(options.toFlags(), binName, index, value, stringContext()));
     }
-    public T stringConcat(String fragment) {
+    public T concat(String fragment) {
         return opBuilder.addOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragment, stringContext()));
     }
-    public T stringConcat(String fragment, Consumer<StringWriteOptions> options) {
-        return stringConcat(fragment, stringOptions(options));
+    public T concat(String fragment, Consumer<StringWriteOptions> options) {
+        return concat(fragment, stringOptions(options));
     }
-    public T stringConcat(String fragment, StringWriteOptions options) {
+    public T concat(String fragment, StringWriteOptions options) {
         return opBuilder.addOp(StringOperation.concat(options.toFlags(), binName, fragment, stringContext()));
     }
-    public T stringConcat(List<String> fragments) {
+    public T concat(List<String> fragments) {
         return opBuilder.addOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragments, stringContext()));
     }
-    public T stringConcat(List<String> fragments, Consumer<StringWriteOptions> options) {
-        return stringConcat(fragments, stringOptions(options));
+    public T concat(List<String> fragments, Consumer<StringWriteOptions> options) {
+        return concat(fragments, stringOptions(options));
     }
-    public T stringConcat(List<String> fragments, StringWriteOptions options) {
+    public T concat(List<String> fragments, StringWriteOptions options) {
         return opBuilder.addOp(StringOperation.concat(options.toFlags(), binName, fragments, stringContext()));
     }
     public T append(String fragment) {
