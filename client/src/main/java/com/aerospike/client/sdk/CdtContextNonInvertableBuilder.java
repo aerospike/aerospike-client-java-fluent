@@ -42,7 +42,8 @@ import com.aerospike.client.sdk.query.PreparedAel;
  * Note that this is a paired interface with {@link CdtContextInvertableBuilder} and they have exactly
  * the same methods, differing only in the interface they extend.
  */
-public interface CdtContextNonInvertableBuilder<T extends AbstractOperationBuilder<T>> extends CdtActionNonInvertableBuilder<T> {
+public interface CdtContextNonInvertableBuilder<T extends AbstractOperationBuilder<T>>
+        extends CdtActionNonInvertableBuilder<T>, StringContextBuilder<T> {
     // Map index
     public CdtContextNonInvertableBuilder<T> onMapIndex(int index);
 

@@ -970,6 +970,27 @@ public class OperateStringTest extends ClusterTest {
     }
 
     @Test
+    public void fluentStringOpsOnStringNestedInList() {
+        runDelete(KEY);
+        seed(KEY, b -> b.bin(BIN).setTo(Arrays.asList("alpha", "beta", "gamma")));
+
+        session.upsert(KEY)
+            .bin(BIN).onListIndex(1).append("!")
+            .execute();
+
+        try (RecordStream rs = session.query(KEY)
+            .bin(BIN).onListIndex(1).strlen()
+            .execute()) {
+            Record rec = rs.getFirstRecord();
+            assertEquals(5L, rec.operationResult(0).getLong());
+        }
+
+        try (RecordStream rs = session.query(KEY).execute()) {
+            assertEquals(Arrays.asList("alpha", "beta!", "gamma"), rs.getFirstRecord().getList(BIN));
+        }
+    }
+
+    @Test
     public void noFailFlagDecidesOutcomeOnUnreachableCtxPath() {
         runDelete(KEY);
 
@@ -1339,10 +1360,6 @@ public class OperateStringTest extends ClusterTest {
 
     @Test
     public void createOnlyWithCtxRaisesParameterError() {
-        // TODO This test does not compile because the string append operation
-        // does not exist under a context (onListIndex(1)). These external
-        // methods need to be added.
-        /*
         List<String> list = new ArrayList<>();
         list.add("alpha");
         list.add("beta");
@@ -1359,21 +1376,19 @@ public class OperateStringTest extends ClusterTest {
 
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
 
-
-        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+        AerospikeException noFailError = assertThrows(AerospikeException.class, () -> {
             session.upsert(KEY)
                 .bin(BIN).onListIndex(1).append("!", ops -> ops.createOnly().noFail())
                 .execute();
         });
 
-        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertEquals(ResultCode.PARAMETER_ERROR, noFailError.getResultCode());
 
         Record rec = session.query(KEY)
             .execute()
             .getFirstRecord();
 
         assertEquals(Arrays.asList("alpha", "beta"), rec.getList(BIN));
-        */
     }
 
     //-----------------------------------------------------------------
