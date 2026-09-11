@@ -52,7 +52,8 @@ import com.aerospike.client.sdk.query.PreparedAel;
  * @see CdtReadContextInvertableBuilder for invertable context operations
  * @see CdtContextNonInvertableBuilder for the read/write version
  */
-public interface CdtReadContextBuilder<T> extends CdtReadActionBuilder<T> {
+public interface CdtReadContextBuilder<T>
+        extends CdtReadActionBuilder<T>, StringReadContextBuilder<T> {
     // Map index
     CdtReadContextBuilder<T> onMapIndex(int index);
 

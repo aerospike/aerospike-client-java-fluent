@@ -64,13 +64,15 @@ public class QuerySelectionHintFlagsTest extends ClusterTest {
             IndexCollectionType.DEFAULT);
 
         session.upsert(dataSet.ids(keyPrefix + "1"))
-            .bins(binName, scoreBinName, countryBinName)
-            .values(25, 25, "US")
+            .bin(binName).setTo(25)
+            .bin(scoreBinName).setTo(25)
+            .bin(countryBinName).setTo("US")
             .execute();
 
         session.upsert(dataSet.ids(keyPrefix + "2"))
-            .bins(binName, scoreBinName, countryBinName)
-            .values(30, 30, "CA")
+            .bin(binName).setTo(30)
+            .bin(scoreBinName).setTo(30)
+            .bin(countryBinName).setTo("CA")
             .execute();
     }
 

@@ -559,7 +559,7 @@ public class ListOperation {
      * a non-string item returns {@code AEROSPIKE_ERR_PARAMETER}. An empty list returns
      * an empty string.
      * <p>
-     * Requires server version 8.1.3 or later.
+     * Requires server version 8.2.0 or later.
      */
     public static Operation join(String binName, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.STRING_LIST_JOIN, ctx);
@@ -574,7 +574,7 @@ public class ListOperation {
      * empty list returns an empty string, and a single-item list returns that item
      * with no separator applied.
      * <p>
-     * Requires server version 8.1.3 or later.
+     * Requires server version 8.2.0 or later.
      */
     public static Operation join(String binName, String separator, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.STRING_LIST_JOIN, Value.get(separator), ctx);

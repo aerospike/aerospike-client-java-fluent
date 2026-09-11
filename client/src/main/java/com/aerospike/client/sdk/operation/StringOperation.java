@@ -19,7 +19,9 @@ package com.aerospike.client.sdk.operation;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Operation;
+import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.ParticleType;
@@ -33,7 +35,7 @@ import com.aerospike.client.sdk.util.Pack;
  * count from the end of the string ({@code -1} = last codepoint). Out-of-bounds
  * indexes are clamped to the valid range; no error is returned.
  * <p>
- * String operations require server version 8.1.3 or later. A non-empty {@link CTX}
+ * String operations require server version 8.2.0 or later. A non-empty {@link CTX}
  * argument navigates into a string nested inside a list or map bin; with no CTX
  * the operation targets the bin itself. The CTX-navigated leaf must already be an
  * Aerospike string — operations on non-string leaves return
@@ -79,6 +81,8 @@ public final class StringOperation {
     private static final int REGEX_REPLACE = 66;
     private static final int APPEND = 67;
     private static final int PREPEND = 68;
+    private static final int VALID_WRITE_FLAGS =
+        StringWriteFlags.CREATE_ONLY | StringWriteFlags.UPDATE_ONLY | StringWriteFlags.NO_FAIL;
 
     //-----------------------------------------------------------------
     // Read operations
@@ -209,7 +213,8 @@ public final class StringOperation {
 
     /**
      * Create string {@code startsWith} operation. Returns {@code true} if the bin begins
-     * with {@code prefix}, {@code false} otherwise.
+     * with {@code prefix}, {@code false} otherwise. Matching is Unicode canonical, not
+     * byte-exact: a prefix in a different normalization form than the source still matches.
      *
      * @param binName   name of the string bin
      * @param prefix    prefix to test for
@@ -223,7 +228,8 @@ public final class StringOperation {
 
     /**
      * Create string {@code endsWith} operation. Returns {@code true} if the bin ends
-     * with {@code suffix}, {@code false} otherwise.
+     * with {@code suffix}, {@code false} otherwise. Matching is Unicode canonical, not
+     * byte-exact: a prefix in a different normalization form than the source still matches.
      *
      * @param binName   name of the string bin
      * @param suffix    suffix to test for
@@ -237,7 +243,9 @@ public final class StringOperation {
 
     /**
      * Create string {@code toInteger} operation. Parses the string as an int64.
-     * Returns {@code AEROSPIKE_ERR_PARAMETER} if the bin cannot be parsed as an integer.
+     * Fails with {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_CONVERSION_FAILED} if the bin
+     * cannot be parsed as an integer.
      *
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -250,7 +258,9 @@ public final class StringOperation {
 
     /**
      * Create string {@code toDouble} operation. Parses the string as a 64-bit float.
-     * Returns {@code AEROSPIKE_ERR_PARAMETER} if the bin cannot be parsed as a double.
+     * Fails with {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_CONVERSION_FAILED} if the bin
+     * cannot be parsed as a double.
      *
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -372,7 +382,10 @@ public final class StringOperation {
 
     /**
      * Create string {@code b64Decode} operation. Treats the bin as base64-encoded text
-     * and returns the decoded bytes as a blob.
+     * and returns the decoded bytes as a blob.  Fails with
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_B64_INVALID} if the bin does not
+     * hold valid base64.
      *
      * @param binName   name of the string bin holding base64 text
      * @param ctx       optional path into a string nested inside a list or map
@@ -429,6 +442,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation insert(int flags, String binName, int index, String value, CTX... ctx) {
+        validateWriteFlags("string_insert", flags, true, ctx);
         byte[] bytes = Pack.pack(INSERT, index, Value.get(value), flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -446,6 +460,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation overwrite(int flags, String binName, int index, String value, CTX... ctx) {
+        validateWriteFlags("string_overwrite", flags, true, ctx);
         byte[] bytes = Pack.pack(OVERWRITE, index, Value.get(value), flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -460,6 +475,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation concat(int flags, String binName, String value, CTX... ctx) {
+        validateWriteFlags("string_concat", flags, true, ctx);
         List<Value> list = new ArrayList<Value>(1);
         list.add(Value.get(value));
         byte[] bytes = Pack.pack(CONCAT, list, flags, ctx);
@@ -477,6 +493,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation concat(int flags, String binName, List<String> values, CTX... ctx) {
+        validateWriteFlags("string_concat", flags, true, ctx);
         List<Value> list = toValueList(values);
         byte[] bytes = Pack.pack(CONCAT, list, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
@@ -492,6 +509,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation append(int flags, String binName, String value, CTX... ctx) {
+        validateWriteFlags("string_append", flags, true, ctx);
         byte[] bytes = Pack.pack(APPEND, Value.get(value), flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -506,7 +524,32 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation prepend(int flags, String binName, String value, CTX... ctx) {
+        validateWriteFlags("string_prepend", flags, true, ctx);
         byte[] bytes = Pack.pack(PREPEND, Value.get(value), flags, ctx);
+        return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code snip} operation that removes the half-open codepoint range
+     * {@code [start, end)} from the bin.
+     * <p>
+     * The server's snip argument list is positional — {@code start}, {@code end},
+     * {@code flags} — so this form cannot carry the {@code flags} without also
+     * supplying an explicit {@code end}: they are accepted for signature parity with the
+     * other modify operations and are <strong>not</strong> transmitted. Use
+     * {@link #snip(int, String, int, int, CTX...)} when the write flags must be
+     * honored.
+     *
+     * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
+     * @param binName   name of the string bin
+     * @param start     first codepoint to remove (inclusive)
+     * @param end       one past the last codepoint to remove (exclusive)
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation snip(int flags, String binName, int start, CTX... ctx) {
+        validateWriteFlags("string_snip", flags, false, ctx);
+        byte[] bytes = Pack.pack(SNIP, start, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
 
@@ -522,6 +565,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation snip(int flags, String binName, int start, int end, CTX... ctx) {
+        validateWriteFlags("string_snip", flags, false, ctx);
         byte[] bytes = Pack.pack(SNIP, start, end, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -538,6 +582,7 @@ public final class StringOperation {
      * @return              modify operation
      */
     public static Operation replace(int flags, String binName, String needle, String replacement, CTX... ctx) {
+        validateWriteFlags("string_replace", flags, false, ctx);
         List<Value> list = pair(needle, replacement);
         byte[] bytes = Pack.pack(REPLACE, list, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
@@ -555,6 +600,7 @@ public final class StringOperation {
      * @return              modify operation
      */
     public static Operation replaceAll(int flags, String binName, String needle, String replacement, CTX... ctx) {
+        validateWriteFlags("string_replace_all", flags, false, ctx);
         List<Value> list = pair(needle, replacement);
         byte[] bytes = Pack.pack(REPLACE_ALL, list, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
@@ -569,6 +615,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation upper(int flags, String binName, CTX... ctx) {
+        validateWriteFlags("string_upper", flags, false, ctx);
         byte[] bytes = Pack.pack(UPPER, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -582,6 +629,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation lower(int flags, String binName, CTX... ctx) {
+        validateWriteFlags("string_lower", flags, false, ctx);
         byte[] bytes = Pack.pack(LOWER, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -596,6 +644,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation caseFold(int flags, String binName, CTX... ctx) {
+        validateWriteFlags("string_case_fold", flags, false, ctx);
         byte[] bytes = Pack.pack(CASE_FOLD, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -610,6 +659,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation normalizeNFC(int flags, String binName, CTX... ctx) {
+        validateWriteFlags("string_normalize_nfc", flags, false, ctx);
         byte[] bytes = Pack.pack(NORMALIZE_NFC, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -624,6 +674,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation trimStart(int flags, String binName, CTX... ctx) {
+        validateWriteFlags("string_trim_start", flags, false, ctx);
         byte[] bytes = Pack.pack(TRIM_START, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -638,6 +689,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation trimEnd(int flags, String binName, CTX... ctx) {
+        validateWriteFlags("string_trim_end", flags, false, ctx);
         byte[] bytes = Pack.pack(TRIM_END, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -652,6 +704,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation trim(int flags, String binName, CTX... ctx) {
+        validateWriteFlags("string_trim", flags, false, ctx);
         byte[] bytes = Pack.pack(TRIM, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -669,6 +722,7 @@ public final class StringOperation {
      * @return              modify operation
      */
     public static Operation padStart(int flags, String binName, int targetLength, String padString, CTX... ctx) {
+        validateWriteFlags("string_pad_start", flags, true, ctx);
         byte[] bytes = Pack.pack(PAD_START, targetLength, Value.get(padString), flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -686,6 +740,7 @@ public final class StringOperation {
      * @return              modify operation
      */
     public static Operation padEnd(int flags, String binName, int targetLength, String padString, CTX... ctx) {
+        validateWriteFlags("string_pad_end", flags, true, ctx);
         byte[] bytes = Pack.pack(PAD_END, targetLength, Value.get(padString), flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -701,6 +756,7 @@ public final class StringOperation {
      * @return          modify operation
      */
     public static Operation repeat(int flags, String binName, int count, CTX... ctx) {
+        validateWriteFlags("string_repeat", flags, true, ctx);
         byte[] bytes = Pack.pack(REPEAT, count, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
@@ -727,6 +783,7 @@ public final class StringOperation {
         int regexFlags,
         CTX... ctx
     ) {
+        validateWriteFlags("string_regex_replace", flags, false, ctx);
         List<Value> list = pair(pattern, replacement);
         byte[] bytes = Pack.pack(REGEX_REPLACE, list, regexFlags, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
@@ -737,9 +794,12 @@ public final class StringOperation {
     //-----------------------------------------------------------------
 
     /**
-     * Create {@code toString} operation that converts an integer, float, string, or
-     * blob bin to its string representation. Returns
-     * {@code AEROSPIKE_ERR_INCOMPATIBLE_TYPE} for any other bin type.
+     * Create {@code toString} operation that converts an integer, float, boolean,
+     * string, or blob bin to its string representation. Returns
+     * {@code AEROSPIKE_ERR_INCOMPATIBLE_TYPE} for any other bin type. A blob bin whose
+     * bytes are not valid UTF-8 fails with
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_UTF8_INVALID}.
      * <p>
      * Unlike the other builders in this class, {@code toString} does not accept a
      * {@link CTX}. The other string operations are sent as {@code STRING_READ} /
@@ -783,5 +843,29 @@ public final class StringOperation {
             list.add(Value.get(s));
         }
         return list;
+    }
+
+    private static void validateWriteFlags(String opName, int flags, boolean createCapable, CTX... ctx) {
+        if (flags < 0 || (flags & ~VALID_WRITE_FLAGS) != 0) {
+            throw AerospikeException.toException(
+                ResultCode.PARAMETER_ERROR, "invalid string write flag " + flags + " for " + opName);
+        }
+
+        boolean createOnly = (flags & StringWriteFlags.CREATE_ONLY) != 0;
+
+        if (createOnly && (flags & StringWriteFlags.UPDATE_ONLY) != 0) {
+            throw AerospikeException.toException(
+                ResultCode.PARAMETER_ERROR, "CREATE_ONLY and UPDATE_ONLY are mutually exclusive for " + opName);
+        }
+
+        if (createOnly && !createCapable) {
+            throw AerospikeException.toException(
+                ResultCode.PARAMETER_ERROR, "CREATE_ONLY is not valid for " + opName);
+        }
+
+        if (createOnly && ctx != null && ctx.length > 0) {
+            throw AerospikeException.toException(
+                ResultCode.PARAMETER_ERROR, "CREATE_ONLY is not valid with CTX for " + opName);
+        }
     }
 }

@@ -71,12 +71,12 @@ public class QuerySelectionOperationalIntegrationTest extends ClusterTest {
             IndexType.INTEGER, IndexCollectionType.DEFAULT);
 
         session.upsert(scopeDataSet.ids(scopeKeyPrefix + "1"))
-            .bins(setScopedBin, namespaceScopedBin)
-            .values(101, 201)
+            .bin(setScopedBin).setTo(101)
+            .bin(namespaceScopedBin).setTo(201)
             .execute();
         session.upsert(scopeDataSet.ids(scopeKeyPrefix + "2"))
-            .bins(setScopedBin, namespaceScopedBin)
-            .values(102, 202)
+            .bin(setScopedBin).setTo(102)
+            .bin(namespaceScopedBin).setTo(202)
             .execute();
     }
 

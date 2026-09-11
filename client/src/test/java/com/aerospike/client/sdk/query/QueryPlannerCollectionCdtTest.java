@@ -189,8 +189,12 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
                 List.of(i % 2 == 0 ? nestedListTarget : "nested_other" + i));
 
             session.upsert(dataSet.ids(keyPrefix + i))
-                .bins(mapBin, listBin, listStrBin, intListBin, intMapBin, nestedBin)
-                .values(map, list, strList, intList, intMap, nested)
+                .bin(mapBin).setTo(map)
+                .bin(listBin).setTo(list)
+                .bin(listStrBin).setTo(strList)
+                .bin(intListBin).setTo(intList)
+                .bin(intMapBin).setTo(intMap)
+                .bin(nestedBin).setTo(nested)
                 .execute();
         }
     }

@@ -77,8 +77,8 @@ public class QuerySelectionLifecycleTest extends ClusterTest {
 
         for (int i = 1; i <= recordCount; i++) {
             session.upsert(dataSet.ids(keyPrefix + i))
-                .bins(ageBin, countryBin)
-                .values(i, (i % 2 == 0) ? "US" : "CA")
+                .bin(ageBin).setTo(i)
+                .bin(countryBin).setTo((i % 2 == 0) ? "US" : "CA")
                 .execute();
         }
     }
